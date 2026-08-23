@@ -137,15 +137,14 @@
         .header-mascot {
             width: 48px;
             height: 48px;
-            border-radius: 50%;
+            border-radius: 14px;
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(232, 133, 91, 0.3);
-        }
-
-        .header-mascot img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            background: linear-gradient(135deg, #E8585B 0%, #E8855B 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
         .header-greeting {
@@ -776,8 +775,14 @@
 
     <div class="header">
         <div class="header-left">
-            <div class="header-mascot" style="display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;">
-                🇵🇭
+            <div class="header-mascot">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 2C10.03 2 6 5.78 6 10.5C6 17.25 15 28 15 28C15 28 24 17.25 24 10.5C24 5.78 19.97 2 15 2Z" fill="white" stroke="white" stroke-width="1.5"/>
+                    <circle cx="15" cy="10.5" r="3.5" fill="#E8585B"/>
+                    <path d="M5 12L3 16L7 15L5 12Z" fill="white" opacity="0.8"/>
+                    <path d="M25 12L27 16L23 15L25 12Z" fill="white" opacity="0.8"/>
+                    <path d="M15 2L13 5H17L15 2Z" fill="white" opacity="0.9"/>
+                </svg>
             </div>
             <div class="header-greeting">
                 <div class="greeting-text" id="greetingText">Good morning!</div>
