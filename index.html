@@ -776,8 +776,8 @@
 
     <div class="header">
         <div class="header-left">
-            <div class="header-mascot">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Coconut_Trees_View_Deck_in_Siargao.jpg/1280px-Coconut_Trees_View_Deck_in_Siargao.jpg" alt="Siargao">
+            <div class="header-mascot" style="display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;">
+                🇵🇭
             </div>
             <div class="header-greeting">
                 <div class="greeting-text" id="greetingText">Good morning!</div>
@@ -886,7 +886,8 @@
             document.getElementById('loadingScreen').classList.add('hidden');
         }, 2500);
 
-        const hour = new Date().getHours();
+        const nowPH = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+        const hour = nowPH.getHours();
         let greeting = 'Good morning!';
         if (hour >= 12 && hour < 17) greeting = 'Good afternoon!';
         else if (hour >= 17) greeting = 'Good evening!';
