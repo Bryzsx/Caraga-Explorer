@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cities of Caraga — Region XIII</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --canvas: #ffffff;
+            --surface: #fafaf9;
+            --ink: #171717;
+            --body: #57534e;
+            --muted: #a8a29e;
+            --hairline: #e7e5e4;
+            --accent: #B4552B;
+            --accent-soft: #faf0e9;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 8px 30px rgba(0,0,0,0.08);
+        }
+
+        html, body { height: 100%; overflow: hidden; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--ink);
+            background: var(--canvas);
+        }
+
+        #map { width: 100%; height: 100%; z-index: 1; }
+
+        .kicker {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        /* ===== Header ===== */
+        .header {
+            position: fixed;
+            top: 28px;
+            left: 32px;
+            z-index: 1000;
+            max-width: 400px;
+            padding-bottom: 20px;
+            animation: fadeIn 0.7s ease;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(-8px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .header .kicker { color: var(--accent); }
+
+        .header h1 {
+            font-size: clamp(30px, 3.2vw, 40px);
+            font-weight: 600;
+            letter-spacing: -1.5px;
+            line-height: 1.05;
+            margin: 10px 0 12px;
+        }
+
+        .header .sub {
+            font-size: 14px;
+            color: var(--body);
+            line-height: 1.55;
+            max-width: 340px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 28px;
+            margin-top: 22px;
+        }
+
+        .header-stat b {
+            display: block;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .header-stat b em {
+            font-style: normal;
+            color: var(--accent);
+        }
+
+        .header-stat span {
+            display: block;
+            font-size: 10.5px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-top: 3px;
+            font-weight: 600;
+        }
+
+        /* ===== Cities panel ===== */
+        .panel {
+            position: fixed;
+            top: 50%;
+            right: 32px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            width: 268px;
+            background: var(--canvas);
+            border: 1px solid var(--hairline);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            padding: 8px 0;
+            animation: panelIn 0.7s ease 0.15s both;
+        }
+
+        @keyframes panelIn {
+            0% { opacity: 0; transform: translate(12px, -50%); }
+            100% { opacity: 1; transform: translate(0, -50%); }
+        }
+
+        .panel-head {
+            padding: 18px 22px 14px;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .panel-head .kicker { color: var(--muted); }
+
+        .panel-head h2 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+            margin-top: 5px;
+        }
+
+        .panel-divider {
+            padding: 14px 22px 4px;
+        }
+
+        .city-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 22px;
+            border-bottom: 1px solid var(--hairline);
+            cursor: pointer;
+            transition: background 0.18s ease;
+        }
+
+        .city-row:last-child { border-bottom: none; }
+
+        .city-row:hover { background: var(--surface); }
+
+        .city-num {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            width: 20px;
+            flex-shrink: 0;
+        }
+
+        .city-body { flex: 1; min-width: 0; }
+
+        .city-name {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            color: var(--ink);
+            transition: color 0.18s ease;
+        }
+
+        .city-row:hover .city-name { color: var(--accent); }
+
+        .city-province {
+            font-size: 11.5px;
+            color: var(--muted);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .city-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .panel-foot {
+            padding: 12px 22px 14px;
+            text-align: right;
+        }
+
+        .panel-foot .kicker {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* ===== Legend / controls ===== */
+        .controls {
+            position: fixed;
+            bottom: 28px;
+            left: 32px;
+            z-index: 1000;
+            background: var(--canvas);
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            box-shadow: var(--shadow-sm);
+            padding: 6px 0;
+            width: 236px;
+            animation: fadeIn 0.7s ease 0.35s both;
+        }
+
+        .ctl-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+        }
+
+        .ctl-row + .ctl-row { border-top: 1px solid var(--hairline); }
+
+        .ctl-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            background: var(--accent-soft);
+            border: 1px solid var(--accent);
+            flex-shrink: 0;
+        }
+
+        .ctl-txt { flex: 1; min-width: 0; }
+
+        .ctl-txt b {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: -0.1px;
+        }
+
+        .ctl-txt .ctl-count {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-left: 4px;
+            letter-spacing: 0;
+        }
+
+        .ctl-txt small {
+            display: block;
+            font-size: 10.5px;
+            color: var(--muted);
+            margin-top: 1px;
+            font-weight: 500;
+        }
+
+        .switch {
+            position: relative;
+            width: 34px;
+            height: 20px;
+            border-radius: 10px;
+            background: #d6d3d1;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .switch.active { background: var(--accent); }
+
+        .switch .knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: transform 0.2s ease;
+        }
+
+        .switch.active .knob { transform: translateX(14px); }
+
+        /* ===== Back link ===== */
+        .back-link {
+            position: fixed;
+            bottom: 28px;
+            right: 32px;
+            z-index: 1000;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink);
+            text-decoration: none;
+            padding: 11px 18px;
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            background: var(--canvas);
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.18s ease, color 0.18s ease;
+            animation: fadeIn 0.7s ease 0.45s both;
+        }
+
+        .back-link:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ===== Leaflet tweaks ===== */
+        .leaflet-control-zoom { display: none !important; }
+
+        .leaflet-control-attribution {
+            background: rgba(255, 255, 255, 0.8) !important;
+            border-radius: 6px 0 0 0 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 9.5px !important;
+            color: var(--muted) !important;
+        }
+
+        .leaflet-tooltip {
+            background: var(--canvas) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: 8px !important;
+            padding: 9px 12px !important;
+            font-family: 'Inter', sans-serif !important;
+            box-shadow: var(--shadow-sm) !important;
+        }
+
+        .leaflet-tooltip b {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--ink);
+            letter-spacing: -0.2px;
+        }
+
+        .leaflet-tooltip small {
+            display: block;
+            font-size: 10.5px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        /* ===== City markers ===== */
+        .city-marker { background: none; border: none; }
+
+        .city-marker-wrap {
+            position: relative;
+            width: 130px;
+            height: 52px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            animation: popIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+            cursor: pointer;
+        }
+
+        @keyframes popIn {
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .city-pin {
+            position: relative;
+            width: 34px;
+            height: 34px;
+            transition: transform 0.18s ease;
+        }
+
+        .city-marker:hover .city-pin { transform: scale(1.12); }
+
+        .city-pin .ring {
+            position: absolute;
+            inset: 2px;
+            border-radius: 50%;
+            border: 1px solid var(--accent);
+            opacity: 0.5;
+        }
+
+        .city-pin .core {
+            position: absolute;
+            inset: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .city-pin .pin-icon {
+            width: 12px;
+            height: 12px;
+            fill: #ffffff;
+        }
+
+        .ctl-swatch.cap {
+            background: var(--canvas);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ctl-swatch.cap svg {
+            width: 10px;
+            height: 10px;
+            fill: var(--accent);
+        }
+
+        .ctl-dash {
+            width: 22px;
+            border-top: 2px dashed var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .city-label {
+            margin-top: 3px;
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink);
+            background: rgba(255, 255, 255, 0.88);
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: color 0.18s ease;
+            white-space: nowrap;
+        }
+
+        .city-marker:hover .city-label { color: var(--accent); }
+
+        /* ===== Province labels ===== */
+        .province-label { font-family: 'Inter', sans-serif; }
+
+        .province-label div {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6b625c;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="kicker">Caraga Explorer &middot; Region XIII</div>
+        <h1>Cities of Caraga</h1>
+        <div class="sub">Six chartered cities, five provinces, and 1,311 barangays &mdash; from the mangrove coasts of Surigao to the forested lowlands of Agusan.</div>
+        <div class="header-stats">
+            <div class="header-stat">
+                <b><em>06</em></b>
+                <span>Cities</span>
+            </div>
+            <div class="header-stat">
+                <b><em>05</em></b>
+                <span>Provinces</span>
+            </div>
+            <div class="header-stat">
+                <b><em>1,311</em></b>
+                <span>Barangays</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cities panel -->
+    <div class="panel">
+        <div class="panel-head">
+            <div class="kicker">The Six Cities</div>
+            <h2>Chartered centers</h2>
+        </div>
+        <div id="cityList"></div>
+        <div class="panel-divider" id="capitalDivider" style="display: none;">
+            <div class="kicker">Other provincial capitals</div>
+        </div>
+        <div id="capitalList"></div>
+        <div class="panel-foot">
+            <div class="kicker">Hover to preview &middot; click to fly</div>
+        </div>
+    </div>
+
+    <!-- Legend / controls -->
+    <div class="controls">
+        <div class="ctl-row">
+            <div class="ctl-dash"></div>
+            <div class="ctl-txt">
+                <b>City circuit</b>
+                <small>Connecting the 6 cities</small>
+            </div>
+            <button class="switch active" id="routeToggle" onclick="toggleRoute()" title="Toggle city circuit">
+                <span class="knob"></span>
+            </button>
+        </div>
+        <div class="ctl-row">
+            <div class="ctl-swatch cap">
+                <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26 6.6.6-5 4.4 1.5 6.5L12 16.9 5.9 19.76l1.5-6.5-5-4.4 6.6-.6L12 2z"/></svg>
+            </div>
+            <div class="ctl-txt">
+                <b>Provincial capitals</b>
+                <small>Star-marked on the map</small>
+            </div>
+        </div>
+        <div class="ctl-row">
+            <div class="ctl-swatch"></div>
+            <div class="ctl-txt">
+                <b>Provinces</b>
+                <small>Region XIII boundary</small>
+            </div>
+        </div>
+        <div class="ctl-row">
+            <div class="ctl-txt">
+                <b>Barangays <span class="ctl-count" id="brgyCount">1,311</span></b>
+                <small>Hover to explore &middot; click to zoom</small>
+            </div>
+            <button class="switch active" id="barangayToggle" onclick="toggleBarangays()" title="Toggle barangays">
+                <span class="knob"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Back -->
+    <a class="back-link" href="map.html">Explore tourist spots &rarr;</a>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const CITIES = [
+    { name: 'Butuan City',     short: 'Butuan',     lat: 8.9475,  lng: 125.5406, province: 'Agusan del Norte',       role: 'Chartered city' },
+    { name: 'Surigao City',    short: 'Surigao',    lat: 9.7833,  lng: 125.4950, province: 'Surigao del Norte',        role: 'Chartered city &middot; Provincial capital' },
+    { name: 'Cabadbaran City', short: 'Cabadbaran', lat: 9.1228,  lng: 125.5346, province: 'Agusan del Norte',         role: 'Chartered city &middot; Provincial capital' },
+    { name: 'Bayugan City',    short: 'Bayugan',    lat: 8.7147,  lng: 125.7478, province: 'Agusan del Sur',           role: 'Chartered city' },
+    { name: 'Tandag City',     short: 'Tandag',     lat: 9.0781,  lng: 126.1986, province: 'Surigao del Sur',          role: 'Chartered city &middot; Provincial capital' },
+    { name: 'Bislig City',     short: 'Bislig',     lat: 8.2150,  lng: 126.3167, province: 'Surigao del Sur',          role: 'Chartered city' },
+    { name: 'Prosperidad',     short: 'Prosperidad', lat: 8.6054, lng: 125.9176, province: 'Agusan del Sur',           role: 'Provincial capital', capital: true },
+    { name: 'San Jose',        short: 'San Jose',   lat: 10.0122, lng: 125.5961, province: 'Dinagat Islands',          role: 'Provincial capital', capital: true }
+];
+
+const PIN_ICON = `<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>`;
+const STAR_ICON = `<path d="M12 2l2.9 6.26 6.6.6-5 4.4 1.5 6.5L12 16.9 5.9 19.76l1.5-6.5-5-4.4 6.6-.6L12 2z"/>`;
+
+        const PROVINCE_INFO = {
+            'Agusan del Norte':  'Cabadbaran City',
+            'Agusan del Sur':    'Prosperidad',
+            'Surigao del Norte': 'Surigao City',
+            'Surigao del Sur':   'Tandag City',
+            'Dinagat Islands':   'San Jose'
+        };
+
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: true,
+            minZoom: 6,
+            maxZoom: 14
+        }).setView([8.55, 126.0], 8);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+            maxZoom: 19
+        }).addTo(map);
+
+        let cityMarkers = [];
+
+        // ===== City markers =====
+        CITIES.forEach((city, i) => {
+            const icon = L.divIcon({
+                className: 'city-marker',
+                html: `
+                    <div class="city-marker-wrap" style="animation-delay: ${0.25 + i * 0.09}s;">
+                        <div class="city-pin">
+                            <span class="ring"></span>
+                            <span class="core">
+                                <svg class="pin-icon" viewBox="0 0 24 24">${city.capital ? STAR_ICON : PIN_ICON}</svg>
+                            </span>
+                        </div>
+                        <div class="city-label">${city.short}</div>
+                    </div>`,
+                iconSize: [130, 52],
+                iconAnchor: [65, 52]
+            });
+
+            const marker = L.marker([city.lat, city.lng], { icon }).addTo(map);
+            cityMarkers.push(marker);
+            marker.bindTooltip(`<b>${city.name}</b><small>${city.province} &middot; ${city.role}</small>`, {
+                direction: 'top',
+                offset: [0, -44]
+            });
+        });
+
+        // ===== Cities + capitals panel rows =====
+        const cityList = document.getElementById('cityList');
+        const capitalDivider = document.getElementById('capitalDivider');
+        const capitalList = document.getElementById('capitalList');
+        let cityIndex = 0;
+        let capitalIndex = 0;
+
+        CITIES.forEach(city => {
+            const row = document.createElement('div');
+            row.className = 'city-row';
+            if (city.capital) {
+                capitalIndex++;
+                row.innerHTML = `
+                    <svg class="cap-star" viewBox="0 0 24 24" width="12" height="12" fill="#B4552B" style="flex-shrink:0;"><path d="M12 2l2.9 6.26 6.6.6-5 4.4 1.5 6.5L12 16.9 5.9 19.76l1.5-6.5-5-4.4 6.6-.6L12 2z"/></svg>
+                    <div class="city-body">
+                        <div class="city-name">${city.name}</div>
+                        <div class="city-province">${city.province} &middot; Capital</div>
+                    </div>
+                    <span class="city-dot"></span>
+                `;
+            } else {
+                cityIndex++;
+                row.innerHTML = `
+                    <span class="city-num">${String(cityIndex).padStart(2, '0')}</span>
+                    <div class="city-body">
+                        <div class="city-name">${city.name}</div>
+                        <div class="city-province">${city.province}</div>
+                    </div>
+                    <span class="city-dot"></span>
+                `;
+                cityList.appendChild(row);
+            }
+            row.addEventListener('mouseenter', () => {
+                map.flyTo([city.lat, city.lng], 8.6, { duration: 0.7 });
+            });
+            row.addEventListener('click', () => {
+                map.flyTo([city.lat, city.lng], 10, { duration: 0.9 });
+            });
+            if (city.capital) {
+                capitalList.appendChild(row);
+                capitalDivider.style.display = 'block';
+            }
+        });
+
+        // ===== City circuit route =====
+        const routePts = CITIES.filter(c => !c.capital).map(c => [c.lat, c.lng]);
+        const cityRoute = L.polyline(routePts, {
+            color: '#B4552B',
+            weight: 2,
+            opacity: 0.8,
+            dashArray: '10 10',
+            lineJoin: 'round',
+            lineCap: 'round'
+        }).addTo(map);
+
+        let routeVisible = true;
+
+        function toggleRoute() {
+            const toggle = document.getElementById('routeToggle');
+            if (routeVisible) {
+                routeVisible = false;
+                map.removeLayer(cityRoute);
+                toggle.classList.remove('active');
+            } else {
+                routeVisible = true;
+                map.addLayer(cityRoute);
+                toggle.classList.add('active');
+            }
+        }
+
+        window.toggleRoute = toggleRoute;
+
+        // ===== Province polygons =====
+        let geojsonLayer = null;
+
+        function loadBoundaries(url) {
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    geojsonLayer = L.geoJSON(data, {
+                        style: {
+                            color: '#B4552B',
+                            weight: 1,
+                            opacity: 0.5,
+                            fillColor: '#B4552B',
+                            fillOpacity: 0.08
+                        },
+                        onEachFeature(feature, layer) {
+                            const name = feature.properties.ADM2_EN || feature.properties.name;
+                            const capital = PROVINCE_INFO[name] || '';
+                            layer.on({
+                                mouseover(e) {
+                                    e.target.setStyle({ fillOpacity: 0.18, weight: 1.5, opacity: 0.9 });
+                                    e.target.bringToFront();
+                                },
+                                mouseout(e) {
+                                    geojsonLayer.resetStyle(e.target);
+                                },
+                                click(e) {
+                                    map.fitBounds(e.target.getBounds(), { padding: [50, 50], maxZoom: 10 });
+                                }
+                            });
+                            layer.bindTooltip(
+                                `<b>${name}</b><small>Capital: ${capital}</small>`,
+                                { sticky: true }
+                            );
+                        }
+                    }).addTo(map);
+
+                    geojsonLayer.eachLayer(layer => {
+                        const name = layer.feature.properties.ADM2_EN || layer.feature.properties.name;
+                        const center = layer.getBounds().getCenter();
+                        L.marker([center.lat, center.lng], {
+                            icon: L.divIcon({
+                                className: 'province-label',
+                                html: `<div>${name}</div>`,
+                                iconSize: [160, 18],
+                                iconAnchor: [80, 9]
+                            }),
+                            interactive: false
+                        }).addTo(map);
+                    });
+
+                    map.fitBounds(geojsonLayer.getBounds(), { padding: [60, 60] });
+                })
+                .catch(() => {
+                    loadBoundaries('data/caraga-provinces.geojson');
+                });
+        }
+
+        loadBoundaries('data/caraga-provinces-real.geojson');
+
+        // ===== Barangay layer =====
+        let barangayLayer = null;
+        let barangaysVisible = true;
+
+        function loadBarangays(url) {
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    barangayLayer = L.geoJSON(data, {
+                        style: {
+                            color: '#8a837c',
+                            weight: 0.6,
+                            opacity: 0.45,
+                            fillColor: '#B4552B',
+                            fillOpacity: 0
+                        },
+                        onEachFeature(feature, layer) {
+                            const p = feature.properties;
+                            layer.on({
+                                mouseover(e) {
+                                    e.target.setStyle({ fillOpacity: 0.14, weight: 1, opacity: 0.9, color: '#B4552B' });
+                                    e.target.bringToFront();
+                                },
+                                mouseout(e) {
+                                    barangayLayer.resetStyle(e.target);
+                                },
+                                click(e) {
+                                    map.fitBounds(e.target.getBounds(), { padding: [40, 40], maxZoom: 13 });
+                                }
+                            });
+                            layer.bindTooltip(
+                                `<b>${p.ADM4_EN || p.psgc_name}</b><small>${p.ADM3_EN || ''} &middot; ${p.ADM2_EN || ''}</small>`,
+                                { sticky: true }
+                            );
+                        }
+                    }).addTo(map);
+
+                    cityRoute.bringToFront();
+
+                    document.getElementById('brgyCount').textContent = data.features.length.toLocaleString('en-US');
+                })
+                .catch(() => {
+                    loadBarangays('data/caraga-barangays.geojson');
+                });
+        }
+
+        function toggleBarangays() {
+            const toggle = document.getElementById('barangayToggle');
+            if (barangaysVisible) {
+                barangaysVisible = false;
+                map.removeLayer(barangayLayer);
+                toggle.classList.remove('active');
+            } else {
+                barangaysVisible = true;
+                map.addLayer(barangayLayer);
+                toggle.classList.add('active');
+            }
+        }
+
+        window.toggleBarangays = toggleBarangays;
+
+        loadBarangays('data/caraga-barangays.geojson');
+    </script>
+</body>
+</html>

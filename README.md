@@ -126,10 +126,10 @@ All images sourced from **Wikimedia Commons** (Creative Commons licensed):
 
 ```bash
 # Using Python
-python -m http.server 8000
+python -m http.server 8000   <------ i copy ni  i butang sa  first na terminal 
 
 # Using Node.js
-npx serve .
+npx serve .         <---------- i copy ni sa pang duha na terminal 
 
 # Using PHP
 php -S localhost:8000
